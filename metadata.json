@@ -1,0 +1,6 @@
+{
+  "name": "Hostel Management SaaS",
+  "description": "A premium, multi-tenant Hostel Management SaaS dashboard featuring student admissions, room allocation, attendance, payments, leave requests, complaint management, visitor tracking, and SQL schema integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
