@@ -251,7 +251,9 @@ export default function App() {
               complaints={tenantComplaints}
               leaves={tenantLeaves}
               expenses={tenantExpenses}
+              messMenu={tenantMessMenu}
               onNavigate={setActiveTab}
+              currentUser={currentUser}
             />
           )}
 
@@ -294,6 +296,7 @@ export default function App() {
               beds={tenantBeds}
               hostels={tenantHostels}
               rooms={tenantRooms}
+              currentUser={currentUser}
             />
           )}
 
@@ -315,6 +318,7 @@ export default function App() {
               setInventory={setInventory}
               expenses={tenantExpenses}
               setExpenses={setExpenses}
+              currentUser={currentUser}
             />
           )}
 

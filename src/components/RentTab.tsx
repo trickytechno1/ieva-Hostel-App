@@ -10,9 +10,10 @@ interface RentTabProps {
   beds: Bed[];
   hostels: Hostel[];
   rooms: Room[];
+  currentUser?: any;
 }
 
-export default function RentTab({ rents, setRents, students, beds, hostels, rooms }: RentTabProps) {
+export default function RentTab({ rents, setRents, students, beds, hostels, rooms, currentUser: propCurrentUser }: RentTabProps) {
   const [selectedHostel, setSelectedHostel] = useState<string>(hostels[0]?.id || '');
   const [showInvoiceForm, setShowInvoiceForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,7 +25,7 @@ export default function RentTab({ rents, setRents, students, beds, hostels, room
     return loadState<RentNotification[]>('rent_notifications_log', []);
   });
 
-  const currentUser = loadState<any>('active_session_user', null);
+  const currentUser = propCurrentUser || loadState<any>('active_session_user', null);
   const isStudent = currentUser?.role === 'Student' || currentUser?.role === 'Parent';
 
   // Filters notification logs based on role-based tenant constraints
@@ -50,9 +51,13 @@ export default function RentTab({ rents, setRents, students, beds, hostels, room
 
   // Lists and stats
   const activeHostelStudentIds = students.filter(s => s.hostelId === selectedHostel).map(s => s.id);
-  const filteredRents = rents.filter(r => activeHostelStudentIds.includes(r.studentId) &&
-    (students.find(s => s.id === r.studentId)?.name.toLowerCase().includes(searchQuery.toLowerCase()) || false)
-  );
+  const filteredRents = rents.filter(r => {
+    if (isStudent) {
+      return r.studentId === currentUser?.id && r.month.toLowerCase().includes(searchQuery.toLowerCase());
+    }
+    return activeHostelStudentIds.includes(r.studentId) &&
+      (students.find(s => s.id === r.studentId)?.name.toLowerCase().includes(searchQuery.toLowerCase()) || false);
+  });
 
   const calculateTotalDue = () => {
     return Number(baseRent) + Number(electricityCharges) + Number(messCharges) + Number(waterCharges) + Number(internetCharges) + Number(lateFees) - Number(discount);
@@ -260,24 +265,32 @@ export default function RentTab({ rents, setRents, students, beds, hostels, room
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm shadow-slate-100/50">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-950 dark:text-white tracking-tight flex items-center gap-2">
-            <Receipt className="h-6 w-6 text-blue-600" /> Financial Rent Ledger
+            <Receipt className="h-6 w-6 text-blue-600" /> {isStudent ? 'My Rent Invoices & Receipts' : 'Financial Rent Ledger'}
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Calculate service charges automatically, invoice student profiles, record UPI/cash clearing, and generate premium downloadable receipts.
+            {isStudent 
+              ? 'View monthly billing statements, pay online, access digital payment methods, and download legal receipt dockets.'
+              : 'Calculate service charges automatically, invoice student profiles, record UPI/cash clearing, and generate premium downloadable receipts.'}
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Hostel Scope:</label>
-          <select
-            value={selectedHostel}
-            onChange={(e) => setSelectedHostel(e.target.value)}
-            className="px-4 py-2 bg-slate-50 dark:bg-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl border border-slate-250 dark:border-slate-850 text-sm font-semibold text-slate-700 dark:text-slate-300 focus:outline-none"
-          >
-            {hostels.map(h => (
-              <option key={h.id} value={h.id}>{h.name}</option>
-            ))}
-          </select>
-        </div>
+        {isStudent ? (
+          <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-850 px-4 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300">
+            Authorized Property: <span className="text-blue-600 dark:text-blue-400 font-extrabold">{hostels.find(h => h.id === selectedHostel)?.name || 'Assigned Property'}</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Hostel Scope:</label>
+            <select
+              value={selectedHostel}
+              onChange={(e) => setSelectedHostel(e.target.value)}
+              className="px-4 py-2 bg-slate-50 dark:bg-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl border border-slate-250 dark:border-slate-850 text-sm font-semibold text-slate-700 dark:text-slate-300 focus:outline-none"
+            >
+              {hostels.map(h => (
+                <option key={h.id} value={h.id}>{h.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Sub tabs navigation */}
@@ -290,7 +303,7 @@ export default function RentTab({ rents, setRents, students, beds, hostels, room
               : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-850'
           }`}
         >
-          <CreditCard className="h-4 w-4" /> Rent Ledger Records
+          <CreditCard className="h-4 w-4" /> {isStudent ? 'My Rent Records' : 'Rent Ledger Records'}
         </button>
         <button
           onClick={() => setActiveSubTab('notifications')}
@@ -301,9 +314,9 @@ export default function RentTab({ rents, setRents, students, beds, hostels, room
           }`}
         >
           <Bell className="h-4 w-4" /> Reminders & Notification Logs
-          {notificationLogs.length > 0 && (
+          {displayedNotificationLogs.length > 0 && (
             <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-[10px] rounded-full font-black">
-              {notificationLogs.length}
+              {displayedNotificationLogs.length}
             </span>
           )}
         </button>
@@ -318,11 +331,11 @@ export default function RentTab({ rents, setRents, students, beds, hostels, room
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search rent history by resident name..."
+                placeholder={isStudent ? "Search invoices by month (e.g., 2026-07)..." : "Search rent history by resident name..."}
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
               />
             </div>
-            {!showInvoiceForm && (
+            {!showInvoiceForm && !isStudent && (
               <button
                 onClick={() => setShowInvoiceForm(true)}
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition shadow-md shadow-blue-600/10"
@@ -546,20 +559,24 @@ export default function RentTab({ rents, setRents, students, beds, hostels, room
                             >
                               Pay UPI
                             </button>
-                            <button
-                              onClick={() => handleRecordPayment(rent.id, 'Cash')}
-                              className="px-2 py-1 bg-slate-800 text-white hover:bg-slate-900 rounded-lg text-[10px] font-bold"
-                              title="Cash Record"
-                            >
-                              Pay Cash
-                            </button>
-                            <button
-                              onClick={() => handleSendManualReminder(rent)}
-                              className="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30 rounded-lg text-[10px] font-bold flex items-center gap-1"
-                              title="Send Reminder Alert"
-                            >
-                              <Send className="h-3 w-3" /> Remind
-                            </button>
+                            {!isStudent && (
+                              <>
+                                <button
+                                  onClick={() => handleRecordPayment(rent.id, 'Cash')}
+                                  className="px-2 py-1 bg-slate-800 text-white hover:bg-slate-900 rounded-lg text-[10px] font-bold"
+                                  title="Cash Record"
+                                >
+                                  Pay Cash
+                                </button>
+                                <button
+                                  onClick={() => handleSendManualReminder(rent)}
+                                  className="px-2 py-1 bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30 rounded-lg text-[10px] font-bold flex items-center gap-1"
+                                  title="Send Reminder Alert"
+                                >
+                                  <Send className="h-3 w-3" /> Remind
+                                </button>
+                              </>
+                            )}
                           </div>
                         )}
                         <button
